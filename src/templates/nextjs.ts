@@ -4,7 +4,12 @@ import path from "path";
 import inquirer from "inquirer";
 import type { Ora } from "ora";
 
-export async function createNextJsApp(projectName: string, spinner: Ora) {
+export async function createNextJsApp(
+  projectName: string,
+  spinner: Ora,
+  privyAppId: string,
+  privyClientId: string
+) {
   // Ask Next.js specific questions
   spinner.stop();
   const nextjsAnswers = await inquirer.prompt([
@@ -65,10 +70,11 @@ export async function createNextJsApp(projectName: string, spinner: Ora) {
 
   createNextAppArgs.push("--import-alias", "@/*");
 
-  console.log("🚀 Creating Next.js project...");
+  spinner.start("Creating Next.js project...");
   // Create Next.js app
-  await execa("npx", createNextAppArgs, { stdio: "inherit" });
+  await execa("npx", createNextAppArgs, { stdio: "pipe" });
 
+  spinner.text = "Installing dependencies...";
   // Install Privy dependencies
   await execa("pnpm", ["add", "@privy-io/react-auth"], {
     cwd: projectName,
@@ -119,8 +125,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   // Create .env.local file for Next.js
   const envContent = `# Privy Configuration
 # Get these values from your Privy dashboard: https://dashboard.privy.io
-NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id_here
-NEXT_PUBLIC_PRIVY_CLIENT_ID=your_privy_client_id_here`;
+NEXT_PUBLIC_PRIVY_APP_ID=${privyAppId || "your_privy_app_id_here"}
+NEXT_PUBLIC_PRIVY_CLIENT_ID=${privyClientId || "your_privy_client_id_here"}`;
 
   await fs.writeFile(path.join(projectName, ".env.local"), envContent);
 
@@ -182,7 +188,7 @@ NEXT_PUBLIC_PRIVY_CLIENT_ID=your_privy_client_id_here`;
     await fs.writeFile(layoutPath, layoutContent);
   }
 
-  spinner.text = "Adding Privy authentication example...";
+  spinner.text = "Setting up your first page...";
 
   // Update page.tsx with Privy authentication example
   const pagePath = path.join(projectName, appDir, "page.tsx");
@@ -201,6 +207,7 @@ export default function Home() {
   if (!ready) {
     return (
       <div style={containerStyle}>
+        <h1 style={titleStyle}>Next.js + Privy App</h1>
         <div style={cardStyle}>
           <div style={loadingStyle}>Loading...</div>
         </div>
@@ -210,12 +217,12 @@ export default function Home() {
 
   return (
     <div style={containerStyle}>
+      <h1 style={titleStyle}>Next.js + Privy App</h1>
       <div style={cardStyle}>
-        <h1 style={titleStyle}>Next.js + Privy App</h1>
         <p style={textStyle}>
           {authenticated ? "You're logged in! 🎉" : "Please log in to continue"}
         </p>
-        
+
         {authenticated ? (
           <button onClick={logout} style={logoutButtonStyle}>
             Logout
@@ -225,101 +232,118 @@ export default function Home() {
             Login with Privy
           </button>
         )}
-        
-        <div style={instructionsStyle}>
-          <p>📁 Visit <code>/app/providers/providers.tsx</code> to view and update your Privy config</p>
-          <p>🎉 Your app is now fully integrated with Privy! You can now provision embedded wallets, smart wallets for your users and much more.</p>
-          <p>📖 Read more in docs: <a href="https://docs.privy.io/" target="_blank" rel="noopener noreferrer" style={linkStyle}>https://docs.privy.io/</a></p>
-        </div>
+      </div>
+      <div style={instructionsStyle}>
+        <p>
+          📁 Visit <code>/app/providers/providers.tsx</code> to view and update
+          your Privy config
+        </p>
+        <p>
+          🎉 Your app is now fully integrated with Privy! You can now provision
+          embedded wallets, smart wallets for your users and much more.
+        </p>
+        <p>
+          📖 Read more in docs:{" "}
+          <a
+            href="https://docs.privy.io/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={linkStyle}
+          >
+            https://docs.privy.io/
+          </a>
+        </p>
       </div>
     </div>
   );
 }
 
 const containerStyle = {
-  minHeight: '100vh',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: '#fefefe',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  padding: '1rem',
+  minHeight: "100vh",
+  display: "flex",
+  flexDirection: "column" as const,
+  alignItems: "center",
+  justifyContent: "center",
+  backgroundColor: "#fefefe",
+  fontFamily:
+    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  padding: "1rem",
 };
 
 const cardStyle = {
-  backgroundColor: 'white',
-  padding: '3rem 2rem',
-  borderRadius: '16px',
-  border: '1px solid #f0f0f0',
-  textAlign: 'center' as const,
-  maxWidth: '420px',
-  width: '100%',
+  backgroundColor: "white",
+  padding: "3rem 2rem",
+  borderRadius: "16px",
+  border: "1px solid #f0f0f0",
+  textAlign: "center" as const,
+  maxWidth: "420px",
+  width: "100%",
 };
 
 const titleStyle = {
-  fontSize: '2rem',
-  fontWeight: '600',
-  color: '#1a1a1a',
-  marginBottom: '0.5rem',
+  fontSize: "2rem",
+  fontWeight: "600",
+  color: "#1a1a1a",
+  marginBottom: "0.5rem",
 };
 
 const textStyle = {
-  fontSize: '1rem',
-  color: '#666666',
-  marginBottom: '2.5rem',
-  lineHeight: '1.5',
+  fontSize: "1rem",
+  color: "#666666",
+  marginBottom: "2.5rem",
+  lineHeight: "1.5",
 };
 
 const loginButtonStyle = {
-  backgroundColor: '#1a1a1a',
-  color: 'white',
-  border: 'none',
-  padding: '0.875rem 2rem',
-  borderRadius: '12px',
-  fontSize: '1rem',
-  fontWeight: '500',
-  cursor: 'pointer',
-  transition: 'all 0.2s ease',
-  width: '100%',
-  maxWidth: '200px',
+  backgroundColor: "#1a1a1a",
+  color: "white",
+  border: "none",
+  padding: "0.875rem 2rem",
+  borderRadius: "12px",
+  fontSize: "1rem",
+  fontWeight: "500",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  width: "100%",
+  maxWidth: "200px",
 };
 
 const logoutButtonStyle = {
-  backgroundColor: '#f5f5f5',
-  color: '#333333',
-  border: 'none',
-  padding: '0.875rem 2rem',
-  borderRadius: '12px',
-  fontSize: '1rem',
-  fontWeight: '500',
-  cursor: 'pointer',
-  transition: 'all 0.2s ease',
-  width: '100%',
-  maxWidth: '200px',
+  backgroundColor: "#f5f5f5",
+  color: "#333333",
+  border: "none",
+  padding: "0.875rem 2rem",
+  borderRadius: "12px",
+  fontSize: "1rem",
+  fontWeight: "500",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  width: "100%",
+  maxWidth: "200px",
 };
 
 const loadingStyle = {
-  fontSize: '1rem',
-  color: '#666666',
+  fontSize: "1rem",
+  color: "#666666",
 };
 
 const instructionsStyle = {
-  marginTop: '2rem',
-  padding: '1.5rem',
-  backgroundColor: '#f8f9fa',
-  borderRadius: '8px',
-  fontSize: '0.875rem',
-  color: '#666666',
-  textAlign: 'left' as const,
+  marginTop: "2rem",
+  padding: "1.5rem",
+  backgroundColor: "#f8f9fa",
+  borderRadius: "8px",
+  fontSize: "0.875rem",
+  color: "#666666",
+  textAlign: "center" as const,
 };
 
 const linkStyle = {
-  color: '#1a1a1a',
-  textDecoration: 'underline',
+  color: "#1a1a1a",
+  textDecoration: "underline",
 };`;
 
     await fs.writeFile(pagePath, pageContent);
   }
 
-  spinner.text = "Finalizing setup...";
+  spinner.text = "✨ Finalizing your Privy-powered Next.js app...";
 }

@@ -4,7 +4,12 @@ import path from "path";
 import inquirer from "inquirer";
 import type { Ora } from "ora";
 
-export async function createViteApp(projectName: string, spinner: Ora) {
+export async function createViteApp(
+  projectName: string,
+  spinner: Ora,
+  privyAppId: string,
+  privyClientId: string
+) {
   // Ask Vite specific questions
   spinner.stop();
   const viteAnswers = await inquirer.prompt([
@@ -20,32 +25,31 @@ export async function createViteApp(projectName: string, spinner: Ora) {
     },
   ]);
 
-  console.log("🚀 Creating Vite project...");
-  // Create Vite app
+  spinner.start("Creating Vite project...");
+  // Create Vite app with environment variable to skip prompts
   await execa(
     "npm",
     [
       "create",
       "vite@latest",
       projectName,
+      "--",
       "--template",
       viteAnswers.template,
-      "--yes",
     ],
     {
-      stdio: "inherit",
+      stdio: "pipe",
+      env: { ...process.env, npm_config_yes: "true" },
     }
   );
 
-  spinner.start("Installing dependencies...");
+  spinner.text = "Installing dependencies...";
 
   // Install dependencies
   await execa("pnpm", ["install"], {
     cwd: projectName,
     stdio: "pipe",
   });
-
-  spinner.text = "Installing Privy dependencies...";
 
   // Install Privy dependencies
   await execa("pnpm", ["add", "@privy-io/react-auth"], {
@@ -90,8 +94,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   // Create .env file for Vite
   const envContent = `# Privy Configuration
 # Get these values from your Privy dashboard: https://dashboard.privy.io
-VITE_PRIVY_APP_ID=your_privy_app_id_here
-VITE_PRIVY_CLIENT_ID=your_privy_client_id_here`;
+VITE_PRIVY_APP_ID=${privyAppId || "your_privy_app_id_here"}
+VITE_PRIVY_CLIENT_ID=${privyClientId || "your_privy_client_id_here"}`;
 
   await fs.writeFile(path.join(projectName, ".env"), envContent);
 
@@ -152,7 +156,7 @@ VITE_PRIVY_CLIENT_ID=your_privy_client_id_here`;
     await fs.writeFile(mainPath, mainContent);
   }
 
-  spinner.text = "Adding Privy authentication example...";
+  spinner.text = "Setting up your first page...";
 
   // Update App.tsx with Privy authentication example
   const appPath = path.join(srcDir, "App.tsx");
@@ -162,7 +166,7 @@ VITE_PRIVY_CLIENT_ID=your_privy_client_id_here`;
 import "./App.css";
 
 // Visit /src/providers.tsx to view and update your Privy config
-// You can now simply use methods from usePrivy hook across your Vite app
+// Your app is now fully integrated with Privy!
 
 function App() {
   const { ready, authenticated, login, logout } = usePrivy();
@@ -170,6 +174,7 @@ function App() {
   if (!ready) {
     return (
       <div className="container">
+        <h1 className="title">Vite + Privy App</h1>
         <div className="card">
           <div className="loading">Loading...</div>
         </div>
@@ -179,12 +184,12 @@ function App() {
   
   return (
     <div className="container">
+      <h1 className="title">Vite + Privy App</h1>
       <div className="card">
-        <h1 className="title">Vite + Privy App</h1>
         <p className="text">
           {authenticated ? "You're logged in! 🎉" : "Please log in to continue"}
         </p>
-        
+
         {authenticated ? (
           <button onClick={logout} className="button logout-button">
             Logout
@@ -194,12 +199,25 @@ function App() {
             Login with Privy
           </button>
         )}
-        
-        <div className="instructions">
-          <p>📁 Visit <code>/src/providers.tsx</code> to view and update your Privy config</p>
-          <p>🎉 Your app is now fully integrated with Privy! You can now provision embedded wallets, smart wallets for your users and much more.</p>
-          <p>📖 Read more in docs: <a href="https://docs.privy.io/" target="_blank" rel="noopener noreferrer">https://docs.privy.io/</a></p>
-        </div>
+      </div>
+      <div className="instructions">
+        <p>
+          📁 Visit <code>/src/providers.tsx</code> to view and update your Privy config
+        </p>
+        <p>
+          🎉 Your app is now fully integrated with Privy! You can now provision
+          embedded wallets, smart wallets for your users and much more.
+        </p>
+        <p>
+          📖 Read more in docs:{" "}
+          <a
+            href="https://docs.privy.io/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            https://docs.privy.io/
+          </a>
+        </p>
       </div>
     </div>
   );
@@ -216,6 +234,7 @@ export default App;`;
 .container {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   width: 100vw;
   justify-content: center;
@@ -292,7 +311,7 @@ export default App;`;
   border-radius: 8px;
   font-size: 0.875rem;
   color: #666666;
-  text-align: left;
+  text-align: center;
 }
 
 .instructions p {
@@ -330,5 +349,5 @@ body {
 
   await fs.writeFile(appCssPath, appCssContent);
 
-  spinner.text = "Finalizing setup...";
+  spinner.text = "✨ Finalizing your Privy-powered Vite app...";
 }

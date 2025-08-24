@@ -27,15 +27,39 @@ async function main() {
         { name: "Vite (React)", value: "vite" },
       ],
     },
+    {
+      type: "input",
+      name: "privyAppId",
+      message:
+        "Enter your Privy App ID (optional - you can add it later to .env):",
+      default: "",
+    },
+    {
+      type: "input",
+      name: "privyClientId",
+      message:
+        "Enter your Privy Client ID (optional - you can add it later to .env):",
+      default: "",
+    },
   ]);
 
   const spinner = ora("Creating your project...").start();
 
   try {
     if (answers.framework === "nextjs") {
-      await createNextJsApp(answers.projectName, spinner);
+      await createNextJsApp(
+        answers.projectName,
+        spinner,
+        answers.privyAppId,
+        answers.privyClientId
+      );
     } else {
-      await createViteApp(answers.projectName, spinner);
+      await createViteApp(
+        answers.projectName,
+        spinner,
+        answers.privyAppId,
+        answers.privyClientId
+      );
     }
 
     spinner.succeed(chalk.green("Project created successfully!"));
@@ -45,19 +69,27 @@ async function main() {
     console.log(chalk.gray(`  1. cd ${answers.projectName}`));
 
     const envFile = answers.framework === "nextjs" ? ".env.local" : ".env";
-    const envVars =
-      answers.framework === "nextjs"
-        ? "NEXT_PUBLIC_PRIVY_APP_ID and NEXT_PUBLIC_PRIVY_CLIENT_ID"
-        : "VITE_PRIVY_APP_ID and VITE_PRIVY_CLIENT_ID";
+    const hasCredentials = answers.privyAppId && answers.privyClientId;
 
-    console.log(chalk.gray(`  2. Update your Privy credentials in ${envFile}`));
-    console.log(chalk.gray(`  3. pnpm dev`));
-    console.log(
-      chalk.blue(
-        `\n🔑 Important: Update ${envVars} in the ${envFile} file with your actual Privy credentials!`
-      )
-    );
-    console.log(chalk.gray(`   Get them from: https://dashboard.privy.io`));
+    if (hasCredentials) {
+      console.log(chalk.gray(`  2. pnpm dev`));
+      console.log(
+        chalk.blue(
+          `\n✅ Your Privy credentials have been automatically configured!`
+        )
+      );
+    } else {
+      console.log(
+        chalk.gray(`  2. Update your Privy credentials in ${envFile}`)
+      );
+      console.log(chalk.gray(`  3. pnpm dev`));
+      console.log(
+        chalk.blue(
+          `\n🔑 Don't forget to add your Privy App ID and Client ID to ${envFile}!`
+        )
+      );
+      console.log(chalk.gray(`   Get them from: https://dashboard.privy.io`));
+    }
   } catch (error) {
     spinner.fail(chalk.red("Failed to create project"));
     console.error(
