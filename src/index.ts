@@ -22,6 +22,10 @@ program
   .option("--nextjs", "Create a Next.js app")
   .option("--vite", "Create a Vite app")
   .option("--global-wallets", "Include global wallet selection")
+  .option(
+    "--wagmi",
+    "Include Wagmi integration for advanced wallet functionality"
+  )
   .argument("[project-name]", "Name of the project")
   .parse();
 
@@ -120,7 +124,8 @@ async function main() {
         spinner,
         answers.privyAppId,
         answers.privyClientId,
-        selectedWallets
+        selectedWallets,
+        options.wagmi || false
       );
     } else {
       await createViteApp(
@@ -128,7 +133,8 @@ async function main() {
         spinner,
         answers.privyAppId,
         answers.privyClientId,
-        selectedWallets
+        selectedWallets,
+        options.wagmi || false
       );
     }
 

@@ -10,7 +10,8 @@ export async function createViteApp(
   spinner: Ora,
   privyAppId: string,
   privyClientId: string,
-  selectedWallets: string[]
+  selectedWallets: string[],
+  useWagmi: boolean = false
 ) {
   // Ask Vite specific questions
   spinner.stop();
@@ -54,7 +55,14 @@ export async function createViteApp(
   });
 
   // Install Privy dependencies
-  await execa("pnpm", ["add", "@privy-io/react-auth"], {
+  const dependencies = ["@privy-io/react-auth"];
+
+  // Add Wagmi dependencies if flag is enabled
+  if (useWagmi) {
+    dependencies.push("@privy-io/wagmi", "@tanstack/react-query", "wagmi");
+  }
+
+  await execa("pnpm", ["add", ...dependencies], {
     cwd: projectName,
     stdio: "pipe",
   });
@@ -71,7 +79,45 @@ export async function createViteApp(
   const loginMethods =
     selectedWallets.length > 0 ? ["email", ...formattedWallets] : ["email"];
 
-  const providersContent = `"use client";
+  const providersContent = useWagmi
+    ? `"use client";
+
+import { PrivyProvider } from "@privy-io/react-auth";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WagmiProvider, createConfig } from "@privy-io/wagmi";
+import { mainnet } from "wagmi/chains";
+import { http } from "wagmi";
+
+const queryClient = new QueryClient();
+
+const wagmiConfig = createConfig({
+  chains: [mainnet],
+  transports: {
+    [mainnet.id]: http(),
+  },
+});
+
+export default function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <PrivyProvider
+      appId={import.meta.env.VITE_PRIVY_APP_ID}
+      clientId={import.meta.env.VITE_PRIVY_CLIENT_ID}
+      config={{
+        loginMethodsAndOrder: {
+          primary: ${JSON.stringify(loginMethods, null, 10)},
+        },
+        embeddedWallets: {
+          createOnLogin: "users-without-wallets",
+        },
+      }}
+    >
+      <QueryClientProvider client={queryClient}>
+        <WagmiProvider config={wagmiConfig}>{children}</WagmiProvider>
+      </QueryClientProvider>
+    </PrivyProvider>
+  );
+}`
+    : `"use client";
 
 import { PrivyProvider } from "@privy-io/react-auth";
 
@@ -83,6 +129,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       config={{
         loginMethodsAndOrder: {
           primary: ${JSON.stringify(loginMethods, null, 10)},
+        },
+        embeddedWallets: {
+          createOnLogin: "users-without-wallets",
         },
       }}
     >
@@ -210,8 +259,15 @@ function App() {
                  🎉 Your app is now fully integrated with Privy! You can now provision
                  embedded wallets, smart wallets for your users and much more.
                </p>${
-                 selectedWallets.length > 0
+                 useWagmi
                    ? `
+               <p>
+                 ⚡ Your app is fully integrated with Wagmi! You can simply use Wagmi hooks to interact with the embedded wallets provisioned by Privy.
+               </p>`
+                   : ""
+               }${
+      selectedWallets.length > 0
+        ? `
                <p className="warning">
                  ⚠️ Important: You have ${selectedWallets.length} global wallet(s) configured.
                  Enable them in your{" "}
@@ -223,8 +279,8 @@ function App() {
                    Privy Dashboard
                  </a>
                </p>`
-                   : ""
-               }
+        : ""
+    }
                <p>
                  📖 Read more in docs:{" "}
                  <a

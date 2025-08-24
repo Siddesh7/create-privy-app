@@ -1,23 +1,20 @@
 # create-privy-app
 
-A CLI tool to quickly scaffold Next.js or Vite applications with Privy integration and global wallets.
+A CLI tool to quickly scaffold Next.js or Vite applications with Privy integration, Wagmi support, and global wallets.
 
 ## Usage
 
 ### Quick Start
 
 ```bash
-# Next.js with global wallets
-npx create-privy-app my-app --nextjs --global-wallets
-
 # Next.js basic setup
 npx create-privy-app my-app --nextjs
 
-# Vite with global wallets
-npx create-privy-app my-app --vite --global-wallets
+# Next.js with Wagmi integration
+npx create-privy-app my-app --nextjs --wagmi
 
-# Vite basic setup
-npx create-privy-app my-app --vite
+# Next.js with Wagmi + global wallets
+npx create-privy-app my-app --nextjs --wagmi --global-wallets
 ```
 
 ### All Commands
@@ -45,6 +42,7 @@ npx create-privy-app --version    # Show version
 
 - `--nextjs` - Create Next.js app (skip framework selection)
 - `--vite` - Create Vite app (skip framework selection)
+- `--wagmi` - Include Wagmi integration for using Wagmi hooks
 - `--global-wallets` - Shows all the available Global wallets (Abstract, Monad Games ID and more)
 - `--help` - Show help information
 - `--version` - Show version number
