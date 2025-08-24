@@ -11,17 +11,19 @@ export async function createNextJsApp(
   privyAppId: string,
   privyClientId: string,
   selectedWallets: string[],
-  useWagmi: boolean = false
+  useWagmi: boolean = false,
+  useGlobalWallets: boolean = false,
+  packageManager: {
+    name: string;
+    command: string;
+    createCommand: string;
+    installCommand: string;
+    runCommand: string;
+  }
 ) {
-  // Ask Next.js specific questions
+  // Ask Next.js specific questions (excluding TypeScript and App Router)
   spinner.stop();
   const nextjsAnswers = await inquirer.prompt([
-    {
-      type: "confirm",
-      name: "typescript",
-      message: "Would you like to use TypeScript?",
-      default: true,
-    },
     {
       type: "confirm",
       name: "eslint",
@@ -40,24 +42,18 @@ export async function createNextJsApp(
       message: "Would you like to use `src/` directory?",
       default: false,
     },
-    {
-      type: "confirm",
-      name: "appRouter",
-      message: "Would you like to use App Router?",
-      default: true,
-    },
   ]);
 
-  // Build create-next-app command
+  // Build create-next-app command with TypeScript and App Router locked
   const createNextAppArgs = [
     "create-next-app@latest",
     projectName,
-    "--use-pnpm",
-    "--yes", // Add this to skip confirmation prompts
+    "--yes", // Skip confirmation prompts
+    "--typescript", // Always use TypeScript (mandatory)
+    "--app", // Always use App Router (mandatory)
+    "--import-alias",
+    "@/*",
   ];
-
-  if (nextjsAnswers.typescript) createNextAppArgs.push("--typescript");
-  else createNextAppArgs.push("--javascript");
 
   if (nextjsAnswers.eslint) createNextAppArgs.push("--eslint");
   else createNextAppArgs.push("--no-eslint");
@@ -68,14 +64,23 @@ export async function createNextJsApp(
   if (nextjsAnswers.srcDir) createNextAppArgs.push("--src-dir");
   else createNextAppArgs.push("--no-src-dir");
 
-  if (nextjsAnswers.appRouter) createNextAppArgs.push("--app");
-  else createNextAppArgs.push("--no-app");
-
-  createNextAppArgs.push("--import-alias", "@/*");
-
   spinner.start("Creating Next.js project...");
-  // Create Next.js app
-  await execa("npx", createNextAppArgs, { stdio: "pipe" });
+  // Create Next.js app using the detected package manager
+  if (packageManager.name === "npm") {
+    await execa("npx", createNextAppArgs, { stdio: "pipe" });
+  } else if (packageManager.name === "pnpm") {
+    const pnpmArgs = [
+      "create",
+      "next-app@latest",
+      ...createNextAppArgs.slice(1),
+    ];
+    await execa("pnpm", pnpmArgs, { stdio: "pipe" });
+  } else if (packageManager.name === "yarn") {
+    const yarnArgs = ["create", "next-app", ...createNextAppArgs.slice(1)];
+    await execa("yarn", yarnArgs, { stdio: "pipe" });
+  } else if (packageManager.name === "bun") {
+    await execa("bunx", createNextAppArgs, { stdio: "pipe" });
+  }
 
   spinner.text = "Installing dependencies...";
   // Install Privy dependencies
@@ -86,22 +91,32 @@ export async function createNextJsApp(
     dependencies.push("@privy-io/wagmi", "@tanstack/react-query", "wagmi");
   }
 
-  await execa("pnpm", ["add", ...dependencies], {
+  // Install using the detected package manager
+  const addCmd =
+    packageManager.name === "npm"
+      ? "install"
+      : packageManager.name === "yarn"
+      ? "add"
+      : "add";
+
+  await execa(packageManager.command, [addCmd, ...dependencies], {
     cwd: projectName,
     stdio: "pipe",
   });
 
   spinner.text = "Setting up Privy integration...";
 
-  // Determine the correct paths
+  // Determine the correct paths (TypeScript mandatory, src dir dynamic)
   const appDir = nextjsAnswers.srcDir ? "src/app" : "app";
+  const isTypeScript = true; // Always TypeScript
   const providersDir = path.join(projectName, appDir, "providers");
   const layoutPath = path.join(projectName, appDir, "layout.tsx");
 
   // Create providers directory
   await fs.ensureDir(providersDir);
 
-  // Create providers.tsx file
+  // Create providers file
+  const providersFileName = "providers.tsx";
   const formattedWallets = formatSelectedWallets(selectedWallets);
   const loginMethods =
     selectedWallets.length > 0 ? ["email", ...formattedWallets] : ["email"];
@@ -129,10 +144,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <PrivyProvider
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
       clientId={process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID!}
-      config={{
+      config={{${
+        useGlobalWallets
+          ? `
         loginMethodsAndOrder: {
           primary: ${JSON.stringify(loginMethods, null, 10)},
-        },
+        },`
+          : ""
+      }
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
         },
@@ -153,10 +172,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <PrivyProvider
       appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID!}
       clientId={process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID!}
-      config={{
+      config={{${
+        useGlobalWallets
+          ? `
         loginMethodsAndOrder: {
           primary: ${JSON.stringify(loginMethods, null, 10)},
-        },
+        },`
+          : ""
+      }
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
         },
@@ -168,7 +191,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 }`;
 
   await fs.writeFile(
-    path.join(providersDir, "providers.tsx"),
+    path.join(providersDir, providersFileName),
     providersContent
   );
 
@@ -240,20 +263,22 @@ NEXT_PUBLIC_PRIVY_CLIENT_ID=your_privy_client_id_here`;
 
   spinner.text = "Setting up your first page...";
 
-  // Update page.tsx with Privy authentication example
+  // Update page file with Privy authentication example
   const pagePath = path.join(projectName, appDir, "page.tsx");
   const pageExists = await fs.pathExists(pagePath);
   if (pageExists) {
     const pageContent = `"use client";
 
-import { usePrivy } from "@privy-io/react-auth";
-
-// Visit /app/providers/providers.tsx (or /src/app/providers/providers.tsx) to view and update your Privy config
-// You can now simply use methods from usePrivy hook across your Next.js app
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+${useWagmi ? `import { useAccount } from "wagmi";` : ""}
 
 export default function Home() {
   const { ready, authenticated, login, logout } = usePrivy();
-
+  ${
+    useWagmi
+      ? `const { address } = useAccount();`
+      : `const { wallets } = useWallets();`
+  }
   if (!ready) {
     return (
       <div style={containerStyle}>
@@ -274,9 +299,24 @@ export default function Home() {
         </p>
 
         {authenticated ? (
-          <button onClick={logout} style={logoutButtonStyle}>
-            Logout
-          </button>
+          <>
+            <button onClick={logout} style={logoutButtonStyle}>
+              Logout
+            </button>
+            ${
+              useWagmi
+                ? `
+            <div style={walletInfoStyle}>
+              <label style={walletLabelStyle}>Wallet Address</label>
+              <p style={walletAddressStyle}>{address}</p>
+            </div>`
+                : `
+            <div style={walletInfoStyle}>
+              <label style={walletLabelStyle}>Wallet Address</label>
+              <p style={walletAddressStyle}>{wallets[0]?.address}</p>
+            </div>`
+            }
+          </>
         ) : (
           <button onClick={login} style={loginButtonStyle}>
             Login with Privy
@@ -285,7 +325,7 @@ export default function Home() {
       </div>
                    <div style={instructionsStyle}>
                <p>
-                 📁 Visit <code>/app/providers/providers.tsx</code> to view and update
+                 📁 Visit <code>/${appDir}/providers/providers.tsx</code> to view and update
                  your Privy config
                </p>
                <p>
@@ -418,6 +458,37 @@ const linkStyle = {
 const warningStyle = {
   color: "#d97706",
   fontWeight: "500",
+};
+
+const walletInfoStyle = {
+  marginTop: "1.5rem",
+  padding: "1rem",
+  backgroundColor: "#f8f9fa",
+  borderRadius: "8px",
+  border: "1px solid #e9ecef",
+};
+
+const walletLabelStyle = {
+  display: "block",
+  fontSize: "0.875rem",
+  fontWeight: "500",
+  color: "#495057",
+  marginBottom: "0.5rem",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.025em",
+};
+
+const walletAddressStyle = {
+  fontSize: "0.875rem",
+  color: "#1a1a1a",
+  fontFamily: "'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+  backgroundColor: "white",
+  padding: "0.75rem",
+  borderRadius: "6px",
+  border: "1px solid #dee2e6",
+  wordBreak: "break-all" as const,
+  margin: "0",
+  lineHeight: "1.4",
 };`;
 
     await fs.writeFile(pagePath, pageContent);

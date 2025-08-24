@@ -1,48 +1,64 @@
 # create-privy-app
 
-A CLI tool to quickly scaffold Next.js or Vite applications with Privy integration, Wagmi support, and global wallets.
+A CLI tool to quickly scaffold Next.js or Vite applications with Privy, Wagmi, and global wallet support.
+
+## Quick Start
+
+```bash
+# Using npm
+npx create-privy-app my-app
+
+# Using pnpm
+pnpm dlx create-privy-app my-app
+
+# Using yarn
+yarn create privy-app my-app
+
+# Using bun
+bunx create-privy-app my-app
+```
 
 ## Usage
 
-### Quick Start
+### Basic Commands
 
 ```bash
-# Next.js basic setup
-npx create-privy-app my-app --nextjs
+# Interactive mode (prompts for all options)
+create-privy-app my-app
 
-# Next.js with Wagmi integration
-npx create-privy-app my-app --nextjs --wagmi
+# Next.js app with short flag
+create-privy-app my-app -n
 
-# Next.js with Wagmi + global wallets
-npx create-privy-app my-app --nextjs --wagmi --global-wallets
+# Vite app with short flag
+create-privy-app my-app -v
+
+# With global wallets and Wagmi
+create-privy-app my-app -n -g -w
 ```
 
-### All Commands
-
-#### Interactive Mode
+### Complete Syntax
 
 ```bash
-npx create-privy-app                    # Full interactive setup
+create-privy-app [project-name] [options]
 ```
 
-#### Variations
+## Framework Options
 
-```bash
-npx create-privy-app [options] [project-name]
-```
+| Flag       | Short | Description                                    |
+| ---------- | ----- | ---------------------------------------------- |
+| `--nextjs` | `-n`  | Create a Next.js app (TypeScript + App Router) |
+| `--vite`   | `-v`  | Create a Vite app (React + TypeScript)         |
 
-#### Help & Info
+## Feature Flags
 
-```bash
-npx create-privy-app --help       # Show all options
-npx create-privy-app --version    # Show version
-```
+| Flag               | Short | Description                                                 |
+| ------------------ | ----- | ----------------------------------------------------------- |
+| `--global-wallets` | `-g`  | Include global wallet selection (Abstract, Monad Games ID.) |
+| `--wagmi`          | `-w`  | Include Wagmi integration for advanced wallet functionality |
 
-### Available Flags
+## Help
 
-- `--nextjs` - Create Next.js app (skip framework selection)
-- `--vite` - Create Vite app (skip framework selection)
-- `--wagmi` - Include Wagmi integration for using Wagmi hooks
-- `--global-wallets` - Shows all the available Global wallets (Abstract, Monad Games ID and more)
-- `--help` - Show help information
-- `--version` - Show version number
+| Flag        | Short | Description           |
+| ----------- | ----- | --------------------- |
+| `--help`    | `-h`  | Show help information |
+| `--version` | `-V`  | Show version number   |

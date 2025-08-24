@@ -11,45 +11,84 @@ export async function createViteApp(
   privyAppId: string,
   privyClientId: string,
   selectedWallets: string[],
-  useWagmi: boolean = false
+  useWagmi: boolean = false,
+  useGlobalWallets: boolean = false,
+  packageManager: {
+    name: string;
+    command: string;
+    createCommand: string;
+    installCommand: string;
+    runCommand: string;
+  }
 ) {
-  // Ask Vite specific questions
-  spinner.stop();
-  const viteAnswers = await inquirer.prompt([
-    {
-      type: "list",
-      name: "template",
-      message: "Which Vite template would you like to use?",
-      choices: [
-        { name: "React + TypeScript", value: "react-ts" },
-        { name: "React + JavaScript", value: "react" },
-      ],
-      default: "react-ts",
-    },
-  ]);
+  // Use TypeScript template (locked choice)
+  const viteAnswers = { template: "react-ts" };
 
   spinner.start("Creating Vite project...");
-  // Create Vite app with environment variable to skip prompts
-  await execa(
-    "npm",
-    [
-      "create",
-      "vite@latest",
-      projectName,
-      "--",
-      "--template",
-      viteAnswers.template,
-    ],
-    {
-      stdio: "pipe",
-      env: { ...process.env, npm_config_yes: "true" },
-    }
-  );
+  // Create Vite app using the detected package manager
+  if (packageManager.name === "npm") {
+    await execa(
+      "npm",
+      [
+        "create",
+        "vite@latest",
+        projectName,
+        "--",
+        "--template",
+        viteAnswers.template,
+      ],
+      {
+        stdio: "pipe",
+        env: { ...process.env, npm_config_yes: "true" },
+      }
+    );
+  } else if (packageManager.name === "pnpm") {
+    await execa(
+      "pnpm",
+      [
+        "create",
+        "vite@latest",
+        projectName,
+        "--template",
+        viteAnswers.template,
+      ],
+      {
+        stdio: "pipe",
+        env: { ...process.env, npm_config_yes: "true" },
+      }
+    );
+  } else if (packageManager.name === "yarn") {
+    await execa(
+      "yarn",
+      ["create", "vite", projectName, "--template", viteAnswers.template],
+      {
+        stdio: "pipe",
+        env: { ...process.env, npm_config_yes: "true" },
+      }
+    );
+  } else if (packageManager.name === "bun") {
+    await execa(
+      "bun",
+      ["create", "vite", projectName, "--template", viteAnswers.template],
+      {
+        stdio: "pipe",
+        env: { ...process.env, npm_config_yes: "true" },
+      }
+    );
+  }
 
   spinner.text = "Installing dependencies...";
 
-  // Install dependencies
-  await execa("pnpm", ["install"], {
+  // Install dependencies using the detected package manager
+  const installCmd =
+    packageManager.name === "npm"
+      ? "install"
+      : packageManager.name === "yarn"
+      ? ""
+      : "install";
+  const installArgs = packageManager.name === "yarn" ? [] : [installCmd];
+
+  await execa(packageManager.command, installArgs, {
     cwd: projectName,
     stdio: "pipe",
   });
@@ -62,16 +101,25 @@ export async function createViteApp(
     dependencies.push("@privy-io/wagmi", "@tanstack/react-query", "wagmi");
   }
 
-  await execa("pnpm", ["add", ...dependencies], {
+  const addCmd =
+    packageManager.name === "npm"
+      ? "install"
+      : packageManager.name === "yarn"
+      ? "add"
+      : "add";
+
+  await execa(packageManager.command, [addCmd, ...dependencies], {
     cwd: projectName,
     stdio: "pipe",
   });
 
   spinner.text = "Setting up Privy integration...";
 
-  // Create providers.tsx file
+  // Create providers file (always TypeScript)
   const srcDir = path.join(projectName, "src");
-  const providersPath = path.join(srcDir, "providers.tsx");
+  const isTypeScript = true;
+  const providersFileName = "providers.tsx";
+  const providersPath = path.join(srcDir, providersFileName);
   const mainPath = path.join(srcDir, "main.tsx");
 
   // Create providers.tsx file with selected wallets
@@ -102,10 +150,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <PrivyProvider
       appId={import.meta.env.VITE_PRIVY_APP_ID}
       clientId={import.meta.env.VITE_PRIVY_CLIENT_ID}
-      config={{
+      config={{${
+        useGlobalWallets
+          ? `
         loginMethodsAndOrder: {
           primary: ${JSON.stringify(loginMethods, null, 10)},
-        },
+        },`
+          : ""
+      }
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
         },
@@ -126,10 +178,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <PrivyProvider
       appId={import.meta.env.VITE_PRIVY_APP_ID}
       clientId={import.meta.env.VITE_PRIVY_CLIENT_ID}
-      config={{
+      config={{${
+        useGlobalWallets
+          ? `
         loginMethodsAndOrder: {
           primary: ${JSON.stringify(loginMethods, null, 10)},
-        },
+        },`
+          : ""
+      }
         embeddedWallets: {
           createOnLogin: "users-without-wallets",
         },
@@ -209,19 +265,22 @@ VITE_PRIVY_CLIENT_ID=your_privy_client_id_here`;
 
   spinner.text = "Setting up your first page...";
 
-  // Update App.tsx with Privy authentication example
+  // Update App file with Privy authentication example
   const appPath = path.join(srcDir, "App.tsx");
   const appExists = await fs.pathExists(appPath);
   if (appExists) {
-    const appContent = `import { usePrivy } from "@privy-io/react-auth";
+    const appContent = `import { usePrivy, useWallets } from "@privy-io/react-auth";
+${useWagmi ? `import { useAccount } from "wagmi";` : ""}
 import "./App.css";
 
-// Visit /src/providers.tsx to view and update your Privy config
-// Your app is now fully integrated with Privy!
 
 function App() {
   const { ready, authenticated, login, logout } = usePrivy();
-  
+  ${
+    useWagmi
+      ? `const { address } = useAccount();`
+      : `const { wallets } = useWallets();`
+  }
   if (!ready) {
     return (
       <div className="container">
@@ -241,10 +300,26 @@ function App() {
           {authenticated ? "You're logged in! 🎉" : "Please log in to continue"}
         </p>
 
+
         {authenticated ? (
-          <button onClick={logout} className="button logout-button">
-            Logout
-          </button>
+          <>
+            <button onClick={logout} className="button logout-button">
+              Logout
+            </button>
+            ${
+              useWagmi
+                ? `
+            <div className="wallet-info">
+              <label className="wallet-label">Wallet Address</label>
+              <p className="wallet-address">{address}</p>
+            </div>`
+                : `
+            <div className="wallet-info">
+              <label className="wallet-label">Wallet Address</label>
+              <p className="wallet-address">{wallets[0]?.address}</p>
+            </div>`
+            }
+          </>
         ) : (
           <button onClick={login} className="button login-button">
             Login with Privy
@@ -375,6 +450,37 @@ export default App;`;
 .loading {
   font-size: 1rem;
   color: #666666;
+}
+
+.wallet-info {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.wallet-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #495057;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.wallet-address {
+  font-size: 0.875rem;
+  color: #1a1a1a;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  background-color: white;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #dee2e6;
+  word-break: break-all;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .instructions {
