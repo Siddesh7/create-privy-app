@@ -202,25 +202,40 @@ function App() {
           </button>
         )}
       </div>
-      <div className="instructions">
-        <p>
-          📁 Visit <code>/src/providers.tsx</code> to view and update your Privy config
-        </p>
-        <p>
-          🎉 Your app is now fully integrated with Privy! You can now provision
-          embedded wallets, smart wallets for your users and much more.
-        </p>
-        <p>
-          📖 Read more in docs:{" "}
-          <a
-            href="https://docs.privy.io/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            https://docs.privy.io/
-          </a>
-        </p>
-      </div>
+                   <div className="instructions">
+               <p>
+                 📁 Visit <code>/src/providers.tsx</code> to view and update your Privy config
+               </p>
+               <p>
+                 🎉 Your app is now fully integrated with Privy! You can now provision
+                 embedded wallets, smart wallets for your users and much more.
+               </p>${
+                 selectedWallets.length > 0
+                   ? `
+               <p className="warning">
+                 ⚠️ Important: You have ${selectedWallets.length} global wallet(s) configured.
+                 Enable them in your{" "}
+                 <a
+                   href="https://dashboard.privy.io/apps?tab=integrations&page=ecosystem"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                 >
+                   Privy Dashboard
+                 </a>
+               </p>`
+                   : ""
+               }
+               <p>
+                 📖 Read more in docs:{" "}
+                 <a
+                   href="https://docs.privy.io/"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                 >
+                   https://docs.privy.io/
+                 </a>
+               </p>
+             </div>
     </div>
   );
 }
@@ -330,6 +345,11 @@ export default App;`;
 .instructions a {
   color: #1a1a1a;
   text-decoration: underline;
+}
+
+.warning {
+  color: #d97706;
+  font-weight: 500;
 }
 
 /* Reset and base styles */

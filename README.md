@@ -1,90 +1,50 @@
-# Create Privy App
+# create-privy-app
 
-A CLI tool to quickly create Next.js or Vite applications with Privy authentication integration.
-
-## Features
-
-- 🚀 Create Next.js or Vite apps with a single command
-- 🔐 Automatic Privy integration setup
-- 📦 Uses pnpm for package management
-- ⚡ Interactive setup with sensible defaults
+A CLI tool to quickly scaffold Next.js or Vite applications with Privy integration and global wallets.
 
 ## Usage
 
-### Development Mode
+### Quick Start
 
 ```bash
-pnpm dev
+# Next.js with global wallets
+npx create-privy-app my-app --nextjs --global-wallets
+
+# Next.js basic setup
+npx create-privy-app my-app --nextjs
+
+# Vite with global wallets
+npx create-privy-app my-app --vite --global-wallets
+
+# Vite basic setup
+npx create-privy-app my-app --vite
 ```
 
-### Build and Run
+### All Commands
+
+#### Interactive Mode
 
 ```bash
-pnpm build
-pnpm start
+npx create-privy-app                    # Full interactive setup
 ```
 
-### Global Installation
+#### Variations
 
 ```bash
-npm install -g .
-create-privy-app
+npx create-privy-app [options] [project-name]
 ```
 
-## What it does
+#### Help & Info
 
-### For Next.js apps:
-
-1. Creates a new Next.js project with your preferred settings
-2. Installs `@privy-io/react-auth`
-3. Creates `/app/providers/providers.tsx` (or `/src/app/providers/providers.tsx` if using src directory)
-4. Automatically updates `layout.tsx` to wrap children with the Providers component
-5. Creates `.env.local` and `.env.example` files with Privy environment variables
-6. Updates `.gitignore` to exclude environment files
-7. **Updates `page.tsx` with Privy-branded login/logout example**
-
-### For Vite apps:
-
-1. Creates a new Vite React project
-2. Installs `@privy-io/react-auth`
-3. Creates `/src/providers.tsx`
-4. Automatically updates `main.tsx` to wrap the App component with Providers
-5. Creates `.env` and `.env.example` files with Privy environment variables
-6. Updates `.gitignore` to exclude environment files
-7. **Updates `App.tsx` with Privy-branded login/logout example**
-8. **Creates Privy-inspired CSS styling in `App.css`**
-
-## Environment Variables
-
-The CLI automatically sets up environment variables for your Privy credentials:
-
-### Next.js
-
-- `NEXT_PUBLIC_PRIVY_APP_ID` - Your Privy App ID
-- `NEXT_PUBLIC_PRIVY_CLIENT_ID` - Your Privy Client ID
-- Stored in `.env.local` file
-
-### Vite
-
-- `VITE_PRIVY_APP_ID` - Your Privy App ID
-- `VITE_PRIVY_CLIENT_ID` - Your Privy Client ID
-- Stored in `.env` file
-
-## Important Note
-
-After creating your project, update the environment variables in the respective `.env` file with your actual Privy credentials from [https://dashboard.privy.io](https://dashboard.privy.io)
-
-## Project Structure
-
+```bash
+npx create-privy-app --help       # Show all options
+npx create-privy-app --version    # Show version
 ```
-create-privy-app/
-├── src/
-│   ├── index.ts          # Main CLI entry point
-│   ├── templates/
-│   │   ├── nextjs.ts     # Next.js project creation
-│   │   └── vite.ts       # Vite project creation
-│   └── utils/
-│       └── validation.ts # Input validation utilities
-├── dist/                 # Compiled JavaScript
-└── package.json
-```
+
+### Available Flags
+
+- `--nextjs` - Create Next.js app (skip framework selection)
+- `--vite` - Create Vite app (skip framework selection)
+- `--global-wallets` - Shows all the available Global wallets (Abstract, Monad Games ID and more)
+- `--help` - Show help information
+- `--version` - Show version number

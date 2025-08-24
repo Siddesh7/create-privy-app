@@ -234,27 +234,43 @@ export default function Home() {
           </button>
         )}
       </div>
-      <div style={instructionsStyle}>
-        <p>
-          📁 Visit <code>/app/providers/providers.tsx</code> to view and update
-          your Privy config
-        </p>
-        <p>
-          🎉 Your app is now fully integrated with Privy! You can now provision
-          embedded wallets, smart wallets for your users and much more.
-        </p>
-        <p>
-          📖 Read more in docs:{" "}
-          <a
-            href="https://docs.privy.io/"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={linkStyle}
-          >
-            https://docs.privy.io/
-          </a>
-        </p>
-      </div>
+                   <div style={instructionsStyle}>
+               <p>
+                 📁 Visit <code>/app/providers/providers.tsx</code> to view and update
+                 your Privy config
+               </p>
+               <p>
+                 🎉 Your app is now fully integrated with Privy! You can now provision
+                 embedded wallets, smart wallets for your users and much more.
+               </p>${
+                 selectedWallets.length > 0
+                   ? `
+               <p style={warningStyle}>
+                 ⚠️ Important: You have ${selectedWallets.length} global wallet(s) configured.
+                 Enable them in your{" "}
+                 <a
+                   href="https://dashboard.privy.io/apps?tab=integrations&page=ecosystem"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   style={linkStyle}
+                 >
+                   Privy Dashboard
+                 </a>
+               </p>`
+                   : ""
+               }
+               <p>
+                 📖 Read more in docs:{" "}
+                 <a
+                   href="https://docs.privy.io/"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   style={linkStyle}
+                 >
+                   https://docs.privy.io/
+                 </a>
+               </p>
+             </div>
     </div>
   );
 }
@@ -341,6 +357,11 @@ const instructionsStyle = {
 const linkStyle = {
   color: "#1a1a1a",
   textDecoration: "underline",
+};
+
+const warningStyle = {
+  color: "#d97706",
+  fontWeight: "500",
 };`;
 
     await fs.writeFile(pagePath, pageContent);
