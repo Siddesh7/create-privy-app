@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 
 import inquirer from "inquirer";
+import searchCheckbox from "inquirer-search-checkbox";
 import chalk from "chalk";
 import ora from "ora";
 import { createNextJsApp } from "./templates/nextjs";
 import { createViteApp } from "./templates/vite";
 import { validateProjectName } from "./utils/validation";
+import { getWalletChoices } from "./utils/wallet-providers";
+
+// Register the search-checkbox plugin
+inquirer.registerPrompt("search-checkbox", searchCheckbox);
 
 async function main() {
   console.log(chalk.blue.bold("\n🔐 Welcome to Create Privy App!\n"));
@@ -41,6 +46,16 @@ async function main() {
         "Enter your Privy Client ID (optional - you can add it later to .env):",
       default: "",
     },
+    {
+      type: "search-checkbox",
+      name: "selectedWallets",
+      message:
+        "Choose global wallets to include (optional - type to search, space to select, enter to continue):",
+      choices: getWalletChoices(),
+      pageSize: 15,
+      highlight: true,
+      searchable: true,
+    },
   ]);
 
   const spinner = ora("Creating your project...").start();
@@ -51,14 +66,16 @@ async function main() {
         answers.projectName,
         spinner,
         answers.privyAppId,
-        answers.privyClientId
+        answers.privyClientId,
+        answers.selectedWallets
       );
     } else {
       await createViteApp(
         answers.projectName,
         spinner,
         answers.privyAppId,
-        answers.privyClientId
+        answers.privyClientId,
+        answers.selectedWallets
       );
     }
 

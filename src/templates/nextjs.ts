@@ -3,12 +3,14 @@ import fs from "fs-extra";
 import path from "path";
 import inquirer from "inquirer";
 import type { Ora } from "ora";
+import { formatSelectedWallets } from "../utils/wallet-providers";
 
 export async function createNextJsApp(
   projectName: string,
   spinner: Ora,
   privyAppId: string,
-  privyClientId: string
+  privyClientId: string,
+  selectedWallets: string[]
 ) {
   // Ask Next.js specific questions
   spinner.stop();
@@ -92,6 +94,10 @@ export async function createNextJsApp(
   await fs.ensureDir(providersDir);
 
   // Create providers.tsx file
+  const formattedWallets = formatSelectedWallets(selectedWallets);
+  const loginMethods =
+    selectedWallets.length > 0 ? ["email", ...formattedWallets] : ["email"];
+
   const providersContent = `"use client";
 
 import { PrivyProvider } from "@privy-io/react-auth";
@@ -103,12 +109,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       clientId={process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID!}
       config={{
         loginMethodsAndOrder: {
-          primary: [
-            "email",
-            "privy:clpgf04wn04hnkw0fv1m11mnb",
-            "privy:cm04asygd041fmry9zmcyn5o5",
-            "privy:cmd8euall0037le0my79qpz42",
-          ],
+          primary: ${JSON.stringify(loginMethods, null, 10)},
         },
       }}
     >
